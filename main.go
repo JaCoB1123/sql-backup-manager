@@ -7,7 +7,7 @@ import (
 	"net/url"
 	"os"
 	_ "github.com/denisenkom/go-mssqldb"
-	"strconv"
+	"net/http"
 )
 
 type config struct {
@@ -67,42 +67,34 @@ func main() {
 	}
 	defer db.Close()
 
-	databases, err := getDatabases(db)
-	if err != nil {
-		panic(err)
-	}
+	http.HandleFunc("/", rootHandler(db))
+	http.ListenAndServe(":8082", nil)
+}
 
-	for i, database := range databases {
-		fmt.Printf("%d: %s\n", i+1, database.Name)
-	}
-
-	var selectedDatabase *database
-	var input string
-	for selectedDatabase == nil {
-		fmt.Print("Select Database: ")
-		fmt.Scanln(&input)
-
-		i, err := strconv.Atoi(input)
-		if err == nil && i > 0 && i <= len(databases) {
-			selectedDatabase = &databases[i-1]
-		} else {
-			selectedDatabase = getDatabaseByName(databases, input)
+func rootHandler(db *sql.DB) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		root, tail := ShiftPath(r.URL.Path)
+		if root != "api" {
+			http.NotFound(w, r)
+			return
 		}
 
-		if selectedDatabase == nil {
-			newDatabase := &database{
-				Name: input,
+		tail, _ = ShiftPath(tail)
+		switch tail {
+		case "databases"		:
+			dbs, err := getDatabases(db)
+			if err != nil {
+				http.Error(w, "Could not serialize", http.StatusInternalServerError)
 			}
-			fmt.Printf("Create new Database '%s'? (y/n) ", input)
-			fmt.Scanln(&input)
-			if input == "y" || input == "yes" {
-				selectedDatabase = newDatabase
-				break
-			}
+
+			enc := json.NewEncoder(w)
+			enc.Encode(dbs)
+			break
+		default:
+			fmt.Fprint(w, "Hit " + tail)
+			break
 		}
 	}
-
-	fmt.Println("Selected Database " + selectedDatabase.Name)
 }
 
 func getDatabases(db *sql.DB) ([]database, error){
