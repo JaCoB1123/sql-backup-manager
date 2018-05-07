@@ -31,7 +31,8 @@ type database struct {
 func main() {
 	f, err := os.Open("./config.json")
 	if err != nil {
-		panic(err)
+		fmt.Println("Cannot open Config: ", err.Error())
+		return
 	}
 
 	var config config
@@ -40,7 +41,8 @@ func main() {
 	f.Close()
 
 	if err != nil {
-		panic(err)
+		fmt.Println("Cannot decode Config: ", err.Error())
+		return
 	}
 
 	query := url.Values{}
@@ -55,7 +57,8 @@ func main() {
 	}
 	db, err := sql.Open("sqlserver", u.String())
 	if err != nil {
-		panic(err)
+		fmt.Println("Cannot connect: ", err.Error())
+		return
 	}
 
 	err = db.Ping()
@@ -77,7 +80,8 @@ func main() {
 }
 
 func getDatabases(db *sql.DB) ([]database, error){
-	rows, err := db.Query("SELECT dbs.name, dbid, datafile.physical_name, logfile.physical_name, cmptlevel, version " +
+	rows, err := db.Query(
+		"SELECT dbs.name, dbid, datafile.physical_name, logfile.physical_name, cmptlevel, version " +
 		"FROM sys.sysdatabases dbs " +
 		"LEFT JOIN sys.master_files datafile ON datafile.database_id = dbid AND datafile.type = 0" +
 		"LEFT JOIN sys.master_files logfile ON logfile.database_id = dbid AND logfile.type = 1")
