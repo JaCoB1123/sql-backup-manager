@@ -19,6 +19,14 @@ type config struct {
 	UseWindowsAuthentication bool
 }
 
+type database struct {
+	Name          string
+	ID            int
+	Filename      string
+	Compatibility int
+	Version       *int
+}
+
 func main() {
 	f, err := os.Open("./config.json")
 	if err != nil {
@@ -44,7 +52,6 @@ func main() {
 		Path:     config.Instance,
 		RawQuery: query.Encode(),
 	}
-	fmt.Println(u.String())
 	db, err := sql.Open("sqlserver", u.String())
 	if err != nil {
 		panic(err)
@@ -57,48 +64,34 @@ func main() {
 	}
 	defer db.Close()
 
-	rows, err := db.Query("SELECT * FROM sys.sysdatabases")
+	databases, err := getDatabases(db)
 	if err != nil {
 		panic(err)
 	}
+	for _, database := range databases {
+		fmt.Println(database.Name + ":")
+		fmt.Println("  " + database.Filename)
+	}
+}
 
-	defer rows.Close()
-
-	cols, err := rows.Columns()
+func getDatabases(db *sql.DB) ([]database, error){
+	rows, err := db.Query("SELECT name, dbid, filename, cmptlevel, version FROM sys.sysdatabases")
 	if err != nil {
-		panic(err)
-	}
-	if cols == nil {
-		return
+		return nil, err
 	}
 
-	vals := make([]interface{}, len(cols))
-	for i := 0; i < len(cols); i++ {
-		vals[i] = new(interface{})
-		if i != 0 {
-			fmt.Print("\t")
-		}
-		fmt.Print(cols[i])
-	}
-	fmt.Println()
+	var databases []database
 	for rows.Next() {
-		err = rows.Scan(vals...)
+		var database database
+		err := rows.Scan(&database.Name, &database.ID, &database.Filename, &database.Compatibility, &database.Version)
 		if err != nil {
-			fmt.Println(err)
-			continue
+			return nil, err
 		}
-		for i := 0; i < len(vals); i++ {
-			if i != 0 {
-				fmt.Print("\t")
-			}
-			printValue(vals[i].(*interface{}))
-		}
-		fmt.Println()
 
+		databases = append(databases, database)
 	}
-	if rows.Err() != nil {
-		panic(rows.Err())
-	}
+
+	return databases, nil
 }
 
 func printValue(pval *interface{}) {
