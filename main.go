@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"net/url"
 	"os"
-	"time"
-
 	_ "github.com/denisenkom/go-mssqldb"
 	"strconv"
 )
@@ -79,8 +77,8 @@ func main() {
 	}
 
 	var selectedDatabase *database
+	var input string
 	for selectedDatabase == nil {
-		var input string
 		fmt.Print("Select Database: ")
 		fmt.Scanln(&input)
 
@@ -89,6 +87,18 @@ func main() {
 			selectedDatabase = &databases[i-1]
 		} else {
 			selectedDatabase = getDatabaseByName(databases, input)
+		}
+
+		if selectedDatabase == nil {
+			newDatabase := &database{
+				Name: input,
+			}
+			fmt.Printf("Create new Database '%s'? (y/n) ", input)
+			fmt.Scanln(&input)
+			if input == "y" || input == "yes" {
+				selectedDatabase = newDatabase
+				break
+			}
 		}
 	}
 
@@ -128,23 +138,4 @@ func getDatabaseByName(databases []database, name string) *database {
 	}
 
 	return nil
-}
-
-func printValue(pval *interface{}) {
-	switch v := (*pval).(type) {
-	case nil:
-		fmt.Print("NULL")
-	case bool:
-		if v {
-			fmt.Print("1")
-		} else {
-			fmt.Print("0")
-		}
-	case []byte:
-		fmt.Print(string(v))
-	case time.Time:
-		fmt.Print(v.Format("2006-01-02 15:04:05.999"))
-	default:
-		fmt.Print(v)
-	}
 }
