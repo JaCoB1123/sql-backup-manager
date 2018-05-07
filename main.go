@@ -23,6 +23,7 @@ type database struct {
 	Name          string
 	ID            int
 	Filename      string
+	LogFilename string
 	Compatibility int
 	Version       *int
 }
@@ -71,11 +72,15 @@ func main() {
 	for _, database := range databases {
 		fmt.Println(database.Name + ":")
 		fmt.Println("  " + database.Filename)
+		fmt.Println("  " + database.LogFilename)
 	}
 }
 
 func getDatabases(db *sql.DB) ([]database, error){
-	rows, err := db.Query("SELECT name, dbid, filename, cmptlevel, version FROM sys.sysdatabases")
+	rows, err := db.Query("SELECT dbs.name, dbid, datafile.physical_name, logfile.physical_name, cmptlevel, version " +
+		"FROM sys.sysdatabases dbs " +
+		"LEFT JOIN sys.master_files datafile ON datafile.database_id = dbid AND datafile.type = 0" +
+		"LEFT JOIN sys.master_files logfile ON logfile.database_id = dbid AND logfile.type = 1")
 	if err != nil {
 		return nil, err
 	}
@@ -83,7 +88,7 @@ func getDatabases(db *sql.DB) ([]database, error){
 	var databases []database
 	for rows.Next() {
 		var database database
-		err := rows.Scan(&database.Name, &database.ID, &database.Filename, &database.Compatibility, &database.Version)
+		err := rows.Scan(&database.Name, &database.ID, &database.Filename, &database.LogFilename, &database.Compatibility, &database.Version)
 		if err != nil {
 			return nil, err
 		}
