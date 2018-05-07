@@ -9,6 +9,7 @@ import (
 	"time"
 
 	_ "github.com/denisenkom/go-mssqldb"
+	"strconv"
 )
 
 type config struct {
@@ -72,11 +73,26 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	for _, database := range databases {
-		fmt.Println(database.Name + ":")
-		fmt.Println("  " + database.Filename)
-		fmt.Println("  " + database.LogFilename)
+
+	for i, database := range databases {
+		fmt.Printf("%d: %s\n", i+1, database.Name)
 	}
+
+	var selectedDatabase *database
+	for selectedDatabase == nil {
+		var input string
+		fmt.Print("Select Database: ")
+		fmt.Scanln(&input)
+
+		i, err := strconv.Atoi(input)
+		if err == nil && i > 0 && i <= len(databases) {
+			selectedDatabase = &databases[i-1]
+		} else {
+			selectedDatabase = getDatabaseByName(databases, input)
+		}
+	}
+
+	fmt.Println("Selected Database " + selectedDatabase.Name)
 }
 
 func getDatabases(db *sql.DB) ([]database, error){
@@ -101,6 +117,17 @@ func getDatabases(db *sql.DB) ([]database, error){
 	}
 
 	return databases, nil
+}
+
+func getDatabaseByName(databases []database, name string) *database {
+	for i := range databases {
+		db := databases[i]
+		if db.Name == name {
+			return &db
+		}
+	}
+
+	return nil
 }
 
 func printValue(pval *interface{}) {
